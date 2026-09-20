@@ -1,3 +1,11 @@
+[![CI](https://github.com/ccasatejada/forge-switcheroo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ccasatejada/forge-switcheroo/actions/workflows/ci.yml)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white)
+![uv](https://img.shields.io/badge/uv-package%20manager-blueviolet?logo=astral&logoColor=white)
+![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
+![mypy](https://img.shields.io/badge/type%20checker-mypy-blue?logo=python&logoColor=white)
+![pytest](https://img.shields.io/badge/tests-pytest-blue?logo=pytest&logoColor=white)
+![Typer](https://img.shields.io/badge/CLI-Typer-009485)
+
 # forge-switcheroo
 
 `forge-switcheroo` converts a GitHub repository for GitLab, or a GitLab repository for
@@ -152,5 +160,20 @@ uv sync --extra dev
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy
-uv run pytest
+uv run pytest --cov=forge_switcheroo --cov-report=term-missing
 ```
+
+## Continuous integration
+
+GitHub Actions runs the following checks on every push and pull request targeting
+`main`:
+
+- Ruff linting and formatting;
+- strict mypy type checking;
+- tests on Python 3.11, 3.12, 3.13, and 3.14;
+- package coverage with a 60% minimum;
+- wheel and source distribution builds;
+- smoke tests for both `forge-switcheroo` and `fswitch` installed commands.
+
+Test and coverage XML reports, as well as the built distributions, are retained as
+workflow artifacts for seven days. The workflow requires no repository secrets.
