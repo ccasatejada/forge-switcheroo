@@ -89,3 +89,29 @@ def test_linked_worktree_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(MigrationError, match="worktrees"):
         migrate(request)
+
+
+def test_migration_converts_main_instead_of_current_feature_branch(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    destination = tmp_path / "converted"
+    source.mkdir()
+    subprocess.run(["git", "init", "-q", "--initial-branch=main", str(source)], check=True)
+    subprocess.run(["git", "-C", str(source), "config", "user.name", "Test User"], check=True)
+    subprocess.run(
+        ["git", "-C", str(source), "config", "user.email", "test@example.com"], check=True
+    )
+    (source / ".github").mkdir()
+    (source / "README.md").write_text("main\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(source), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(source), "commit", "-q", "-m", "Initial"], check=True)
+    subprocess.run(["git", "-C", str(source), "checkout", "-q", "-b", "feature"], check=True)
+    (source / "README.md").write_text("feature\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(source), "commit", "-q", "-am", "Feature"], check=True)
+    request = MigrationRequest(
+        source, destination, Forge.GITHUB, Forge.GITLAB, frozenset({Feature.CI})
+    )
+
+    result = migrate(request)
+
+    assert result.branch == "main"
+    assert (destination / "README.md").read_text(encoding="utf-8") == "main\n"

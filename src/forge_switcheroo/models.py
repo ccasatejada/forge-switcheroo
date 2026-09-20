@@ -19,6 +19,12 @@ class Feature(StrEnum):
     TEMPLATES = "templates"
 
 
+class Visibility(StrEnum):
+    PRIVATE = "private"
+    INTERNAL = "internal"
+    PUBLIC = "public"
+
+
 @dataclass(frozen=True, slots=True)
 class ProjectInspection:
     path: Path
@@ -38,6 +44,7 @@ class MigrationRequest:
 @dataclass(frozen=True, slots=True)
 class MigrationResult:
     destination: Path
+    branch: str
     actions: tuple[str, ...]
     warnings: tuple[str, ...]
 
@@ -47,3 +54,19 @@ class AuthenticatedUser:
     forge: Forge
     hostname: str
     username: str
+
+
+@dataclass(frozen=True, slots=True)
+class PublishRequest:
+    forge: Forge
+    hostname: str
+    repository: str
+    visibility: Visibility
+
+
+@dataclass(frozen=True, slots=True)
+class PublishResult:
+    repository: str
+    web_url: str
+    ssh_url: str
+    branch: str

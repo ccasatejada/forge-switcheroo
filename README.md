@@ -1,12 +1,12 @@
 # forge-switcheroo
 
-`forge-switcheroo` prepares a safe, local copy of a GitHub repository for GitLab, or a
-GitLab repository for GitHub.
+`forge-switcheroo` converts a GitHub repository for GitLab, or a GitLab repository for
+GitHub. It can keep the result local or create the target repository and push the
+converted primary branch.
 
-The project is currently a **local MVP**: it copies the repository and its Git history,
-neutralizes the `origin` remote in the copy, converts selected components where possible,
-and writes a report. It does not create the remote repository or migrate issues,
-pull/merge requests, secrets, or CI variables through the APIs yet.
+The source repository is never overwritten. The converted repository is created in a new
+directory, and remote publishing is always optional. Forge-specific server data such as
+issues, pull/merge requests, secrets, and CI variables is not migrated yet.
 
 ## Installation
 
@@ -50,10 +50,11 @@ The wizard provides:
 
 1. source directory selection with path completion;
 2. target forge selection, defaulting to the opposite forge;
-3. an optional API authentication preflight using `gh` or `glab`;
-4. the new project name and destination parent directory;
-5. optional transformations;
-6. a summary before any files are written.
+3. the new project name and destination parent directory;
+4. optional transformations;
+5. optional remote repository creation and `main`/`master` push;
+6. an API authentication preflight when remote publishing is enabled;
+7. a summary before any files or remote resources are created.
 
 An explicit command is also available for scripts:
 
@@ -61,6 +62,22 @@ An explicit command is also available for scripts:
 forge-switcheroo migrate ./my-project ./output/my-project-gitlab \
   --target gitlab --feature ci --feature templates
 ```
+
+Add `--publish` to create the target repository and push the converted primary branch:
+
+```console
+forge-switcheroo migrate ./my-project ./output/my-project-gitlab \
+  --target gitlab \
+  --feature ci \
+  --feature templates \
+  --publish \
+  --hostname gitlab.example.com \
+  --repository my-group/my-project \
+  --visibility private
+```
+
+When `--repository` is omitted, it defaults to the authenticated user's namespace and
+the destination directory name. `--hostname` defaults to `github.com` or `gitlab.com`.
 
 To inspect a repository without changing it:
 
@@ -87,11 +104,30 @@ forge-switcheroo auth-check github
 forge-switcheroo auth-check gitlab --hostname gitlab.example.com
 ```
 
-The preflight checks the relevant CLI authentication and makes an authenticated `/user`
-API request. SSH credentials remain responsible for Git clone/fetch/push operations;
-they do not authenticate HTTP API calls.
+Authentication is optional for local conversion and required only with `--publish`. The
+preflight checks the relevant CLI authentication and makes an authenticated `/user` API
+request. The official CLI then creates the repository through the API, while SSH
+credentials are used by Git for the push.
 
-## MVP transformations
+## Publishing behavior
+
+Remote publishing deliberately migrates only one primary branch:
+
+- `main` is preferred when both `main` and `master` exist;
+- `master` is used when no `main` branch exists;
+- repositories with neither branch are rejected;
+- tags and secondary branches are not pushed;
+- the source repository must have no staged, modified, or untracked files;
+- converted files are committed as `chore: migrate project to <forge>`;
+- `.forge-switcheroo-report.json` remains local and is not committed;
+- the original remote is retained as `source`, while the new repository becomes
+  `origin`.
+
+If repository creation succeeds but the Git push fails, the CLI reports the remote URL
+and preserves the converted local directory for recovery. It never deletes the remote
+repository automatically.
+
+## Transformations
 
 - `ci` generates a conservative target pipeline based on the detected language. The
   source file is preserved for manual review.

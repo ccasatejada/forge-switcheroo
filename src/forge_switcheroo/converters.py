@@ -3,9 +3,8 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+from forge_switcheroo.constants import GITHUB, GITLAB
 from forge_switcheroo.models import Forge
-
-from src.forge_switcheroo.constants import GITHUB, GITLAB
 
 
 def _detected_commands(project: Path) -> tuple[list[str], list[str]]:

@@ -38,7 +38,7 @@ def validate_request(request: MigrationRequest) -> None:
     _compute_converted_paths(request)
 
 
-def _compute_converted_paths(request):
+def _compute_converted_paths(request: MigrationRequest) -> None:
     generated_paths: list[Path] = []
     if Feature.CI in request.features:
         generated_paths.append(
@@ -82,6 +82,70 @@ def _rename_origin(project: Path) -> str:
     return "Renamed origin remote to source"
 
 
+def _checkout_primary_branch(project: Path) -> str:
+    for branch in ("main", "master"):
+        local = subprocess.run(
+            ["git", "-C", str(project), "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
+            check=False,
+        )
+        if local.returncode == 0:
+            checkout = subprocess.run(
+                ["git", "-C", str(project), "checkout", "--quiet", branch],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if checkout.returncode != 0:
+                raise MigrationError(
+                    f"Could not check out primary branch {branch}: {checkout.stderr.strip()}"
+                )
+            return branch
+
+    current = subprocess.run(
+        ["git", "-C", str(project), "symbolic-ref", "--short", "HEAD"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    current_branch = current.stdout.strip()
+    if current.returncode == 0 and current_branch in {"main", "master"}:
+        return current_branch
+
+    for branch in ("main", "master"):
+        remote = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(project),
+                "show-ref",
+                "--verify",
+                "--quiet",
+                f"refs/remotes/source/{branch}",
+            ],
+            check=False,
+        )
+        if remote.returncode == 0:
+            checkout = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(project),
+                    "checkout",
+                    "--quiet",
+                    "--track",
+                    "-b",
+                    branch,
+                    f"source/{branch}",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if checkout.returncode == 0:
+                return branch
+    raise MigrationError("No main or master branch was found in the source repository.")
+
+
 def migrate(
     request: MigrationRequest, progress: Callable[[str], None] | None = None
 ) -> MigrationResult:
@@ -96,6 +160,9 @@ def migrate(
         actions.append("Copied repository and Git history")
         notify("Neutralizing the original remote…")
         actions.append(_rename_origin(temporary))
+        notify("Checking out the primary branch…")
+        branch = _checkout_primary_branch(temporary)
+        actions.append(f"Selected {branch} as the primary branch")
 
         if Feature.CI in request.features:
             notify("Preparing the target CI configuration…")
@@ -113,6 +180,7 @@ def migrate(
             "destination": str(request.destination),
             "source_forge": request.source_forge.value,
             "target_forge": request.target_forge.value,
+            "branch": branch,
             "features": sorted(feature.value for feature in request.features),
             "actions": actions,
             "warnings": warnings,
@@ -125,4 +193,4 @@ def migrate(
         if temporary.exists():
             shutil.rmtree(temporary)
         raise
-    return MigrationResult(request.destination, tuple(actions), tuple(warnings))
+    return MigrationResult(request.destination, branch, tuple(actions), tuple(warnings))

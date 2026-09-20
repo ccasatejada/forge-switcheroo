@@ -10,11 +10,20 @@ def test_help_lists_commands_and_global_options() -> None:
     result = runner.invoke(app, ["--help"])
 
     assert result.exit_code == 0
-    assert "Migrate a local repository copy" in result.stdout
+    assert "Convert and migrate a repository" in result.stdout
     assert "auth-check" in result.stdout
     assert "inspect" in result.stdout
     assert "migrate" in result.stdout
     assert "--version" in result.stdout
+
+
+def test_migrate_help_describes_optional_remote_publishing() -> None:
+    result = runner.invoke(app, ["migrate", "--help"])
+
+    assert result.exit_code == 0
+    assert "--publish" in result.stdout
+    assert "--repository" in result.stdout
+    assert "--visibility" in result.stdout
 
 
 def test_version() -> None:
