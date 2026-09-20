@@ -1,0 +1,2 @@
+GITHUB = ".github"
+GITLAB = ".gitlab"
